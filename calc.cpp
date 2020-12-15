@@ -201,11 +201,11 @@ namespace calc {
 
             cli::PrintLn(L"&8┃  ┃  ┏━━━━━ &7Защитные показатели врага &8━━━━━━━━━━━━━━━━━┓  ┃  ┃");
             cli::PrintLn(L"&8┃  ┃  ┃  &7Броня                  &e"
-                    + std::to_wstring(enemy->GetArmor()) + L" &7--> &e"
+                    + std::to_wstring(enemy->GetArmor()) + L" &f--> &e"
                     + std::to_wstring(enemyArmor) + armorShredStr,
                     56, L"&8┃  ┃  ┃");
             cli::PrintLn(L"&8┃  ┃  ┃  &7Сопротивление магии    &d"
-                    + std::to_wstring(enemy->GetMagicResistance()) + L" &7--> &d"
+                    + std::to_wstring(enemy->GetMagicResistance()) + L" &f--> &d"
                     + std::to_wstring(enemyMRes) + mResShredStr,
                     56, L"&8┃  ┃  ┃");
             cli::PrintLn(L"&8┃  ┃  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛  ┃  ┃");
