@@ -1,7 +1,6 @@
-#include <iostream>
-#include "cli.cpp"
+#define VERSION std::wstring(L"1.0.0")
 
-#define TITLE "\n" \
+#define TITLE L"&e\n" \
               "      _                                    \n" \
               "     | |                                   \n" \
               "     | |     ___  __ _  __ _ _   _  ___    \n" \
@@ -14,23 +13,29 @@
               "  ____) | | | | (_) | |_) | |_) |  __/ |   \n" \
               " |_____/|_| |_|\\___/| .__/| .__/ \\___|_|   \n" \
               "                    | |   | |              \n" \
-              "                    |_|   |_|              \n\n\n"
+              "                    |_|   |_|              \n"
+
+
+#include <iostream>
+#include <fcntl.h>
+#include "cli.hpp"
+
 
 int main() {
-    setlocale(LC_ALL, "Russian");
+    _setmode(_fileno(stdout), _O_U16TEXT); // РїРѕРґРґРµСЂР¶РєР° Р®РЅРёРєРѕРґР°
 
-    std::cout << TITLE;
-    std::cout << "Добро пожаловать!" << std::endl;
+    cli::PrintLn(TITLE);
+    cli::PrintLn(L"&e            LeagueShopper v" + VERSION + L"\n");
 
-    env::GameState gameState = cli::ReadGameState();
-    std::vector<calc::ItemCalculator*> calculators = calc::GetAvailableCalculators();
-    calc::ItemCalculator* calc;
+    std::vector<items::Item*> allItems = items::GetAvailableItems();
+    game::GameState* gameState = cli::ReadGameState();
+    bool verbose = cli::ReadVerbose();
 
-    while ((calc = cli::ReadCalc(calculators)) != nullptr) { // nullptr значит, что был введён 0, т.е. выход
-        std::cout << calc->GetDesc() << ":" << std::endl;
-        calc->Evaluate(gameState);
-        std::cout << std::endl;
-    }
+    if (verbose)
+        cli::PrintLn(L"РђРєС‚РёРІРёСЂРѕРІР°РЅ СЂРµР¶РёРј РїРѕРґСЂРѕР±РЅРѕРіРѕ РІС‹РІРѕРґР° (РІС‹С‡РёСЃР»РµРЅРёСЏ Р·Р°Р№РјСѓС‚ Р±РѕР»СЊС€Рµ РІСЂРµРјРµРЅРё).");
 
-    std::cout << "До встречи!" << std::endl;
+    cli::PrintLn();
+    cli::PrintGameState(gameState);
+    calc::Evaluate(verbose, gameState, allItems);
+    cli::PrintLn(L"РґРѕ СЃРІСЏР·Рё");
 }

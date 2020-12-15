@@ -1,163 +1,165 @@
-#ifndef LEAGUE_SHOPPER_ITEMS_CPP
-#define LEAGUE_SHOPPER_ITEMS_CPP
-
-
-#include <string>
-#include <vector>
-#include "env.cpp"
+#include "items.hpp"
 
 namespace items {
-    class Item {
-    private:
-        std::string name;
-        int price;
-
-    protected:
-        int attackDamage = 0;
-        int abilityPower = 0;
-        int lethality = 0; // = flatArmorPen @ 18 lvl
-        int flatMagicPen = 0;
-        int armorPenPercent = 0;
-        int magicPenPercent = 0;
-
-        Item(const std::string& name, const int& price) {
-            this->name = name;
-            this->price = price;
-        }
-
-    public:
-        virtual int AmplifyChampionAp(const int& curAp) const {
-            return curAp;
-        }
-
-        virtual env::DamageOutput AmplifyAutoAttack(const env::GameState& gameState) const {
-            env::DamageOutput aaDmg;
-            aaDmg.physicalDamage = gameState.GetTotalAd();
-
-            return aaDmg;
-        }
-
-        virtual int AmplifyAbility(const int& abilityDamage, const env::GameState& gameState) const {
-            return abilityDamage;
-        }
-    };
 
     /*
-     *
-     * Предметы на силу умений.
-     *
+     * Item
      */
+    Item::Item(const std::wstring& name, const int& price) {
+        this->name = name;
+        this->price = price;
+    }
 
-    class LichBane : public Item {
-    public:
-        LichBane() : Item("Гроза личей", 3000) {
-            abilityPower = 80;
-            flatMagicPen = 18;
-        }
+    std::wstring Item::GetName() const {
+        return name;
+    }
 
-        env::DamageOutput AmplifyAutoAttack(const env::GameState& gameState) const override {
-            env::DamageOutput aaDmg;
+    int Item::GetPrice() const {
+        return price;
+    }
 
-            aaDmg.physicalDamage = gameState.GetTotalAd();
-            aaDmg.magicDamage = // 150% Base_AD + 40% AP
-                      (int) (1.5 * gameState.GetChampion().GetBaseAd())
-                    + (int) (0.4 * gameState.GetCurAp()               );
+    int Item::GetAttackDamage() const {
+        return attackDamage;
+    }
 
-            return aaDmg;
-        }
-    };
+    int Item::GetAbilityPower() const {
+        return abilityPower;
+    }
 
-    class HorizonFocus : public Item {
-    public:
-        HorizonFocus() : Item("Хекстековый прицел", 3000) {
-            abilityPower = 100;
-            flatMagicPen = 39;
-        }
+    int Item::GetLethality() const {
+        return lethality;
+    }
 
-        int AmplifyAbility(const int& abilityDamage, const env::GameState& gameState) const override {
-            return (int) (1.1 * abilityDamage); // +10% общего урона (до применения защитных показателей)
-        }
-    };
+    int Item::GetFlatMagicPen() const {
+        return flatMagicPen;
+    }
 
-    class RabadonsDeathcap : public Item {
-    public:
-        RabadonsDeathcap() : Item("Смертельная шляпа Рабадона", 3800) {
-            flatMagicPen = 18;
-            abilityPower = 120;
-        }
+    int Item::GetArmorPenPercent() const {
+        return armorPenPercent;
+    }
 
-        int AmplifyChampionAp(const int& curAp) const override {
-            return (int) (curAp * 1.35); // +35% общей силы умений
-        }
-    };
+    int Item::GetMagicPenPercent() const {
+        return magicPenPercent;
+    }
 
-    class VoidStaff : public Item {
-    public:
-        VoidStaff() : Item("Посох Бездны", 2500) {
-            abilityPower = 65;
-            flatMagicPen = 18;
-            magicPenPercent = 40;
-        }
-    };
+    ItemType Item::GetType() const {
+        return attackDamage > 0 ? ItemType::AD : ItemType::AP;
+    }
+
+    int Item::AmplifyChampionAp(const int& curAp) const {
+        return curAp;
+    }
+
+    game::DamageOutput* Item::AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
+                                               const int& totalAd, const int& ap) const {
+        return new game::DamageOutput(totalAd, 0, 0);
+    }
+
+    game::DamageOutput* Item::AmplifyAbility(const game::DamageOutput* abilityDamage) const {
+        return new game::DamageOutput(
+                abilityDamage->physicalDamage,
+                abilityDamage->magicDamage,
+                abilityDamage->trueDamage
+        );
+    }
 
     /*
-     *
-     * Предметы на силу атаки.
-     *
+     * LichBane
      */
+    LichBane::LichBane() : Item(L"Гроза личей", 3000) {
+        abilityPower = 80;
+    }
 
-    class YomuusGhostblade : public Item {
-    public:
-        YomuusGhostblade() : Item("Призрачный клинок Йомуу", 3000) {
-            attackDamage = 60;
-            lethality = 21;
-        }
-    };
+    game::DamageOutput* LichBane::AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
+                                                   const int& totalAd, const int& ap) const {
+        return new game::DamageOutput(
+                totalAd,
+                (int) (1.5 * baseAd) + (int) (0.4 * ap),
+                0
+        );
+    }
 
-    class RavenousHydra : public Item {
-    public:
-        RavenousHydra() : Item("Ненасытная гидра", 3300) {
-            attackDamage = 65;
-        }
+    /**
+     * HorizonFocus
+     */
+    HorizonFocus::HorizonFocus() : Item(L"Хекстековый прицел", 3000) {
+        abilityPower = 100;
+    }
 
-        env::DamageOutput AmplifyAutoAttack(const env::GameState& gameState) const override {
-            env::DamageOutput aaDmg;
-            aaDmg.physicalDamage =  // +36% урона от автоатак по области (= mean(12, 60))
-                    (int) (1.36 * gameState.GetTotalAd());
+    game::DamageOutput* HorizonFocus::AmplifyAbility(const game::DamageOutput* abilityDamage) const {
+        return new game::DamageOutput(
+                (int) (1.1 * abilityDamage->physicalDamage),
+                (int) (1.1 * abilityDamage->magicDamage),
+                (int) (1.1 * abilityDamage->trueDamage)
+        );
+    }
 
-            return aaDmg;
-        }
-    };
+    /**
+     * RabadonsDeathcap
+     */
+    RabadonsDeathcap::RabadonsDeathcap() : Item(L"Смертельная шляпа Рабадона", 3800) {
+        abilityPower = 120;
+    }
 
-    class SeryldasGrudge : public Item {
-    public:
-        SeryldasGrudge() : Item("Злоба Серильды", 3400) {
-            attackDamage = 45;
-            armorPenPercent = 30;
-        }
-    };
+    int RabadonsDeathcap::AmplifyChampionAp(const int& curAp) const {
+        return (int) (curAp * 1.35); // +35% общей силы умений
+    }
 
-    std::vector<Item> GetAvailableApItems() {
-        std::vector<Item> items;
+    /**
+     * VoidStaff
+     */
+    VoidStaff::VoidStaff() : Item(L"Посох Бездны", 2500) {
+        abilityPower = 65;
+        magicPenPercent = 40;
+    }
 
-        items.emplace_back(LichBane());
-        items.emplace_back(HorizonFocus());
-        items.emplace_back(RabadonsDeathcap());
-        items.emplace_back(VoidStaff());
+    /*
+     * YomuusGhostblade
+     */
+    YomuusGhostblade::YomuusGhostblade() : Item(L"Призрачный клинок Йомуу", 3000) {
+        attackDamage = 60;
+        lethality = 21;
+    }
 
+    /*
+     * RavenousHydra
+     */
+    RavenousHydra::RavenousHydra() : Item(L"Ненасытная гидра", 3300) {
+        attackDamage = 65;
+    }
+
+    game::DamageOutput* RavenousHydra::AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
+                                                        const int& totalAd, const int& ap) const {
+        return new game::DamageOutput(
+                (int) (1.36 * totalAd),
+                0,
+                0
+        );
+    }
+
+    /*
+     * SeryldasGrudge
+     */
+    SeryldasGrudge::SeryldasGrudge() : Item(L"Злоба Серильды", 3400) {
+        attackDamage = 45;
+        armorPenPercent = 30;
+    }
+    
+    /*
+     * <...>
+     */
+    std::vector<Item*> GetAvailableItems() {
+        std::vector<Item*> items;
+
+        items.emplace_back(new LichBane());
+        items.emplace_back(new HorizonFocus());
+        items.emplace_back(new RabadonsDeathcap());
+        items.emplace_back(new VoidStaff());
+        items.emplace_back(new YomuusGhostblade());
+        items.emplace_back(new RavenousHydra());
+        items.emplace_back(new SeryldasGrudge());
+        
         return items;
     }
 
-    std::vector<Item> GetAvailableAdItems() {
-        std::vector<Item> items;
-
-        items.emplace_back(YomuusGhostblade());
-        items.emplace_back(RavenousHydra());
-        items.emplace_back(SeryldasGrudge());
-
-        return items;
-    }
 }
-
-
-#endif //LEAGUE_SHOPPER_ITEMS_CPP

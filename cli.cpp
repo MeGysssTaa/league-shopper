@@ -1,23 +1,128 @@
-#ifndef LEAGUE_SHOPPER_CLI_CPP
-#define LEAGUE_SHOPPER_CLI_CPP
+#define MAX_INT_INPUT 5000
+#define HEX std::wstring(L"0123456789abcdef")
+#define DEFAULT_COLOR 0x7
+#define BOLD_WHITE 0xF
+#define COLOR_CODES_PATTERN L"&[\\da-fA-F]"
 
-
-#include <iostream>
-#include <vector>
-#include "env.cpp"
-#include "calc.cpp"
+#include <windows.h>
+#include <regex>
+#include "cli.hpp"
 
 namespace cli {
-    env::Champion ReadChampion() {
-        std::vector<env::Champion> champions = env::GetAvailableChampions();
-        std::cout << "Выберите вашего чемпиона из списка (введите номер - число в скобках):" << std::endl;
-        env::Champion c = champions[0];
+
+    HANDLE _consoleHandle = nullptr;
+
+    std::wstring WithPadding(const int& effectiveWidth, std::wstring text) {
+        if (effectiveWidth < 1)
+            throw std::invalid_argument("effectiveWidth cannot be smaller than 1");
+
+        int textLen = std::regex_replace(text, std::wregex(COLOR_CODES_PATTERN), L"").length();
+
+        if (textLen > effectiveWidth)
+            throw std::invalid_argument("effective text length (without color codes) "
+                                        "cannot be greater than effectiveWidth");
+
+        for (; textLen < effectiveWidth; textLen++)
+            text += L" ";
+
+        return text;
+    }
+
+    void Color(const int& color) {
+        if (color < 0 || color > 255)
+            throw std::invalid_argument("color must be in range 0..255");
+
+        if (_consoleHandle == nullptr)
+            _consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+
+        SetConsoleTextAttribute(_consoleHandle, color);
+    }
+
+    int FromHex(const wchar_t& c) {
+        int num = HEX.find(c);
+        return num != std::wstring::npos ? num : -1;
+    }
+
+    void PrintLn(std::wstring text, const int& effectiveWidth, const std::wstring& suffix) {
+        if (text.empty())
+            throw std::invalid_argument("text cannot be empty (use pure cli::PrintLn() instead)");
+
+        if (effectiveWidth != -1)
+            text = WithPadding(effectiveWidth, text); // РґРѕРїРѕР»РЅСЏРµРј РїСЂРѕР±РµР»Р°РјРё РґРѕ РЅСѓР¶РЅРѕР№ РґР»РёРЅС‹ (РµСЃР»Рё РЅСѓР¶РЅРѕ)
+
+        int offset = 0; // РѕС‚СЃС‚СѓРї СЃР»РµРІР° РѕС‚ РЅР°С‡Р°Р»Р° С‚РµРєСЃС‚Р° РїСЂРё РІС‹РІРѕРґРµ РѕС‡РµСЂРµРґРЅРѕР№ С‡Р°СЃС‚Рё СЃРѕРѕР±С‰РµРЅРёСЏ
+        Color(DEFAULT_COLOR); // СЃР±СЂРѕСЃ С†РІРµС‚Р° РЅР° Р±РµР»С‹Р№ РїСЂРё РєР°Р¶РґРѕРј РІС‹РІРѕРґРµ
+
+        for (int i = 0; i < text.length() - 1; i++) {
+            int hexCol = FromHex(text[i + 1]); // -1, РµСЃР»Рё СЌС‚Рѕ РЅРµ С€РµСЃС‚РЅР°РґС†Р°С‚РµСЂРёС‡РЅР°СЏ С†РёС„СЂР° (0..9 | a..f)
+
+            if (text[i] == '&' && hexCol != -1) { // РЅР°С€Р»Рё С†РІРµС‚РѕРІРѕР№ РєРѕРґ (РЅР°РїСЂРёРјРµСЂ, "&e" (=0xE=14))
+                std::wcout << text.substr(offset, i - offset); // РІС‹РІРѕРґРёРј С‚РµРєСЃС‚ СЃР»РµРІР° РѕС‚ РЅРѕРІРѕРіРѕ С†РІРµС‚РѕРІРѕРіРѕ РєРѕРґР°
+                Color(hexCol); // СѓСЃС‚Р°РЅР°РІР»РёРІР°РµРј С†РІРµС‚ РґР»СЏ РІС‹РІРѕРґР° С‚РµРєСЃС‚Р° СЃРїСЂР°РІР° РѕС‚ РЅРѕРІРѕРіРѕ С†РІРµС‚РѕРІРѕРіРѕ РєРѕРґР°
+                offset = i + 2; // РїСЂРѕРїСѓСЃРєР°РµРј СЃР°Рј С†РІРµС‚РѕРІРѕР№ РєРѕРґ РїСЂРё СЃР»РµРґСѓСЋС‰РµРј РІС‹РІРѕРґРµ
+                i++; // РїРµСЂРµСЃРєР°РєРёРІР°РµРј С‡РµСЂРµР· СЃР»РµРґСѓСЋС‰РёР№ СЃРёРјРІРѕР» (С†РІРµС‚РѕРІРѕР№ РєРѕРґ РїРѕСЃР»Рµ '&')
+            }
+        }
+
+        std::wcout << text.substr(offset, text.length()); // РІС‹РІРѕРґРёРј РѕСЃС‚Р°РІС€РёР№СЃСЏ С‚РµРєСЃС‚ (РµСЃР»Рё РµСЃС‚СЊ)
+
+        if (suffix.empty())
+            std::wcout << std::endl; // СЃСѓС„С„РёРєСЃ РЅРµ СѓРєР°Р·Р°РЅ, Р·Р°РІРµСЂС€Р°РµРј РІС‹РІРѕРґ РЅРѕРІРѕР№ СЃС‚СЂРѕРєРѕР№
+        else
+            PrintLn(suffix); // РІС‹РІРѕРґРёРј СЃСѓС„С„РёРєСЃ (СЃ РїРѕРґРґРµСЂР¶РєРѕР№ С†РІРµС‚РѕРІС‹С… РєРѕРґРѕРІ)
+
+        Color(DEFAULT_COLOR); // СЃР±СЂРѕСЃ С†РІРµС‚Р° РЅР° Р±РµР»С‹Р№ РїРѕСЃР»Рµ РєР°Р¶РґРѕРіРѕ РІС‹РІРѕРґР°
+    }
+
+    void PrintLn(const std::wstring& text) {
+        PrintLn(text, -1, L""); // РІС‹РІРѕРґ С‚РµРєСЃС‚Р° Р±РµР· СЃСѓС„С„РёРєСЃР° Рё РєРѕРЅС‚СЂРѕР»СЏ РґР»РёРЅС‹ (РѕС‚СЃС‚СѓРїР°)
+    }
+
+    void PrintLn() {
+        std::wcout << std::endl; // РїСЂРѕСЃС‚Рѕ РІС‹РІРѕРґ РїСѓСЃС‚РѕР№ СЃС‚СЂРѕРєРё
+    }
+
+    std::wstring Trim(const std::wstring& str) {
+        if (str.empty())
+            return str;
+
+        std::wstring::size_type lOffset = 0;
+        std::wstring::size_type nChars = str.length();
+
+        for (const wchar_t& c : str) {
+            if (std::iswspace(c)) {
+                lOffset++;
+                nChars--;
+            } else break;
+        }
+
+        for (std::wstring::size_type i = str.length() - 1; i >= 0; i--) {
+            if (std::iswspace(str[i]))
+                nChars--;
+            else break;
+        }
+
+        return str.substr(lOffset, nChars);
+    }
+
+    std::wstring ReadLine() {
+        Color(BOLD_WHITE);
+        std::wstring input;
+        std::getline(std::wcin, input);
+        input = Trim(input);
+        Color(DEFAULT_COLOR);
+
+        return input.empty() ? ReadLine() : input;
+    }
+
+    game::Champion* ReadChampion() {
+        std::vector<game::Champion*> champions = game::GetAvailableChampions();
+        PrintLn(L"Р’С‹Р±РµСЂРёС‚Рµ РІР°С€РµРіРѕ С‡РµРјРїРёРѕРЅР° РёР· СЃРїРёСЃРєР° (РІРІРµРґРёС‚Рµ РЅРѕРјРµСЂ - С‡РёСЃР»Рѕ РІ СЃРєРѕР±РєР°С…):");
 
         for (int i = 0; i < champions.size(); i++)
-            std::cout << "    (" << i + 1 << ") " << champions[i].GetName() << "." << std::endl;
+            PrintLn(L"    (" + std::to_wstring(i + 1) + L") " + champions[i]->GetName() + L".");
 
-        std::string input;
-        std::getline(std::cin, input);
+        std::wstring input = ReadLine();
 
         try {
             int index = std::stoi(input) - 1;
@@ -25,105 +130,116 @@ namespace cli {
             if (index < 0 || index >= champions.size())
                 throw std::out_of_range("index out of range: " + std::to_string(index));
 
-            env::Champion champ = champions[index];
-            std::cout << "Выбранный чемпион: " << champ.GetName() << std::endl << std::endl;
-
-            return champ;
+            return champions[index];
         } catch (const std::exception&) {
-            // std::invalid_argument - Введено не число.
-            // std::out_of_range     - Введено число, однако нет чемпиона с номером = (index - 1).
-            // Других исключений тут быть не должно.
-            std::cout << "Нераспознанный чемпион. Нужно ввести число, "
-                         "стоящее в скобках перед именем нужного персонажа." << std::endl;
+            // std::invalid_argument | std::out_of_range
+            PrintLn(L"&cРћС€РёР±РєР° РІРІРѕРґР°. РќРµСЂР°СЃРїРѕР·РЅР°РЅРЅС‹Р№ С‡РµРјРїРёРѕРЅ. РќСѓР¶РЅРѕ РІРІРµСЃС‚Рё С‡РёСЃР»Рѕ, "
+                    "СЃС‚РѕСЏС‰РµРµ РІ СЃРєРѕР±РєР°С… РїРµСЂРµРґ РёРјРµРЅРµРј РЅСѓР¶РЅРѕРіРѕ РїРµСЂСЃРѕРЅР°Р¶Р°.");
 
             return ReadChampion();
         }
     }
 
-    int ReadNaturalNum(const std::string& message) {
-        std::string input;
-        std::cout << message << std::endl;
-        std::getline(std::cin, input);
+    int ReadLimitedInt(const std::wstring& message) {
+        PrintLn(message);
+        std::wstring input = ReadLine();
 
         try {
             int inputInt = std::stoi(input);
 
-            if (inputInt < 0)
-                throw std::invalid_argument("negative input: " + std::to_string(inputInt));
+            if (inputInt < 0 || inputInt > MAX_INT_INPUT)
+                throw std::invalid_argument("bad input: " + std::to_string(inputInt));
 
             return inputInt;
-        } catch (const std::invalid_argument&) {
-            std::cout << "Ошибка ввода. Пожалуйста, введите целое положительное число." << std::endl;
-            return ReadNaturalNum(message);
+        } catch (const std::exception&) {
+            // std::invalid_argument | std::out_of_range
+            PrintLn(L"&cРћС€РёР±РєР° РІРІРѕРґР°. РќСѓР¶РЅРѕ РІРІРµСЃС‚Рё С†РµР»РѕРµ С‡РёСЃР»Рѕ РІ РґРёР°РїР°Р·РѕРЅРµ"
+                    " РѕС‚ 1 РґРѕ " + std::to_wstring(MAX_INT_INPUT) + L".");
+            return ReadLimitedInt(message);
         }
     }
 
-    env::EnemyData ReadEnemyData(const int& num) {
-        std::string input;
-        std::cout << std::endl << "Введите информацию о противнике № " << num << std::endl;
+    game::EnemyData* ReadEnemyData(const int& num) {
+        std::wstring input;
+        PrintLn(L"Р’РІРµРґРёС‚Рµ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РїСЂРѕС‚РёРІРЅРёРєРµ в„– " + std::to_wstring(num));
 
-        env::EnemyData enemyData(
-                ReadNaturalNum("Броня:"),
-                ReadNaturalNum("Сопротивление магии:")
+        auto* enemyData = new game::EnemyData(
+                ReadLimitedInt(L"Р‘СЂРѕРЅСЏ:"),
+                ReadLimitedInt(L"РЎРѕРїСЂРѕС‚РёРІР»РµРЅРёРµ РјР°РіРёРё:")
         );
 
-        std::cout << std::endl;
+        std::wcout << std::endl;
 
         return enemyData;
     }
 
-    std::vector<env::EnemyData> ReadEnemies() {
-        std::cout << "Против кого вы играете?" << std::endl;
-        std::vector<env::EnemyData> enemies;
+    std::vector<game::EnemyData*> ReadEnemies() {
+        PrintLn(L"РџСЂРѕС‚РёРІ РєРѕРіРѕ РІС‹ РёРіСЂР°РµС‚Рµ?");
+        std::vector<game::EnemyData*> enemies;
+        int enemiesNum;
 
-        for (int i = 1; i <= 5; i++)
+        while ((enemiesNum = ReadLimitedInt(L"РљРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕС‚РёРІРЅРёРєРѕРІ:")) > 9)
+            PrintLn(L"&cРћС€РёР±РєР° РІРІРѕРґР°. РЈРєР°Р¶РёС‚Рµ РЅРµ Р±РѕР»РµРµ 9 РїСЂРѕС‚РёРІРЅРёРєРѕРІ.");
+
+        for (int i = 1; i <= enemiesNum; i++)
             enemies.push_back(ReadEnemyData(i));
 
         return enemies;
     }
 
-    env::GameState ReadGameState() {
-        env::Champion champ = ReadChampion();
-        int curBonusAd = ReadNaturalNum("Сколько у вас в данный момент бонусной силы атаки?");
-        int curAp = ReadNaturalNum("Сколько у вас в данный момент силы умений?");
-        std::vector<env::EnemyData> enemies = ReadEnemies();
+    game::GameState* ReadGameState() {
+        game::Champion* champ = ReadChampion();
+        int curBonusAd = ReadLimitedInt(L"РЎРєРѕР»СЊРєРѕ Сѓ РІР°СЃ РІ РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚ Р±РѕРЅСѓСЃРЅРѕР№ СЃРёР»С‹ Р°С‚Р°РєРё?");
+        int curAp = ReadLimitedInt(L"РЎРєРѕР»СЊРєРѕ Сѓ РІР°СЃ РІ РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚ СЃРёР»С‹ СѓРјРµРЅРёР№?");
+        std::vector<game::EnemyData*> enemies = ReadEnemies();
 
-        return env::GameState(champ, curBonusAd, curAp, enemies);
+        return new game::GameState(champ, curBonusAd, curAp, enemies);
     }
 
-    calc::ItemCalculator* ReadCalc(std::vector<calc::ItemCalculator*> calculators) {
-        std::cout << "Что нужно посчитать?" << std::endl;
-        std::cout << "Выберите тип калькулятора из списка (введите номер - число в скобках):" << std::endl;
+    bool EqIgnCase(const std::wstring& a, const std::wstring& b) {
+        if (a.length() != b.length() || a.empty())
+            return false;
 
-        for (int i = 0; i < calculators.size(); i++)
-            std::cout << "    (" << i + 1 << ") " << calculators[i]->GetDesc() << "." << std::endl;
+        for (int i = 0; i < a.length(); i++)
+            if (std::towlower(a[i]) != std::towlower(b[i]))
+                return false;
 
-        std::string input;
-        std::getline(std::cin, input);
+        return true;
+    }
 
-        try {
-            int inputInt = std::stoi(input);
+    bool ReadVerbose() {
+        PrintLn(L"РќСѓР¶РЅС‹ Р»Рё РІР°Рј РїРѕРґСЂРѕР±РЅРѕСЃС‚Рё РІСЃРµС… РІС‹С‡РёСЃР»РµРЅРёР№? &8[&aРґР°&8/&cРЅРµС‚&8]&7");
+        std::wstring input = ReadLine();
 
-            if (inputInt == 0)
-                return nullptr; // выход из программы
-
-            int index = inputInt - 1;
-
-            if (index < 0 || index >= calculators.size())
-                throw std::out_of_range("index out of range: " + std::to_string(index));
-
-            return calculators[index];
-        } catch (const std::exception&) {
-            // std::invalid_argument - Введено не число.
-            // std::out_of_range     - Введено число, однако нет калькулятора с номером = (index - 1).
-            // Других исключений тут быть не должно.
-            std::cout << "Нераспознанный тип калькулятора. Нужно ввести число, "
-                         "стоящее в скобках перед описанием нужного калькулятора." << std::endl;
-
-            return ReadCalc(calculators);
+        if (EqIgnCase(input, L"Рґ") || EqIgnCase(input, L"РґР°")
+                || EqIgnCase(input, L"y") || EqIgnCase(input, L"yes"))
+            return true;
+        else if (EqIgnCase(input, L"РЅ") || EqIgnCase(input, L"РЅРµС‚")
+                || EqIgnCase(input, L"n") || EqIgnCase(input, L"no"))
+            return false;
+        else {
+            PrintLn(L"&cРћС€РёР±РєР° РІРІРѕРґР°. РќСѓР¶РЅРѕ РІРІРµСЃС‚Рё &fР”Рђ &cРёР»Рё &fРќР•Рў&c.");
+            return ReadVerbose();
         }
     }
+
+    void PrintGameState(const game::GameState* gameState) {
+        PrintLn(L"&8в”Џв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓ &7Р’РІРѕРґ &8в”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”“");
+        PrintLn(L"&8в”ѓ  &7Р’Р°С€ С‡РµРјРїРёРѕРЅ               &f" + gameState->GetChampion()->GetName(),
+                60, L"  &8в”ѓ");
+        PrintLn(L"&8в”ѓ  &7Р‘Р°Р·РѕРІР°СЏ СЃРёР»Р° Р°С‚Р°РєРё        &e"
+                + std::to_wstring(gameState->GetChampion()->GetBaseAd()),
+                60, L"  &8в”ѓ");
+        PrintLn(L"&8в”ѓ  &7Р”РѕРї. СЃРёР»Р° Р°С‚Р°РєРё           &e"
+                + std::to_wstring(gameState->GetCurBonusAd()),
+                60, L"  &8в”ѓ");
+        PrintLn(L"&8в”ѓ  &7РЎРёР»Р° СѓРјРµРЅРёР№               &d"
+                + std::to_wstring(gameState->GetCurAp()),
+                60, L"  &8в”ѓ");
+        PrintLn(L"&8в”ѓ  &7РљРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕС‚РёРІРЅРёРєРѕРІ    &c"
+                + std::to_wstring(gameState->GetEnemies().size()),
+                60, L"  &8в”ѓ");
+        PrintLn(L"&8в”—в”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”Ѓв”›\n\n");
+    }
+
 }
-
-
-#endif //LEAGUE_SHOPPER_CLI_CPP
