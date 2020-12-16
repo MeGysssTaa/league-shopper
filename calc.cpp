@@ -24,7 +24,7 @@ namespace calc {
     }
 
     void Evaluate(const bool& verbose, const game::GameState* gameState,
-                                             const std::vector<items::Item*>& allItems) {
+                  const std::vector<items::Item*>& allItems) {
         items::ItemType prefItemType = GetPrefItemType(gameState->GetChampion());
         game::DamageOutput* highestDmgOfAll = nullptr;
         items::Item* bestItemOfAll = nullptr;
@@ -98,7 +98,7 @@ namespace calc {
     }
 
     game::DamageOutput* ComputeDamageOutput(const bool& verbose, const game::GameState* gameState,
-                                           const game::EnemyData* enemy, const items::Item* item) {
+                                            const game::EnemyData* enemy, const items::Item* item) {
         auto* damage = new game::DamageOutput(0, 0, 0);
 
         // Учитываем бонусные атакующие показатели предмета.

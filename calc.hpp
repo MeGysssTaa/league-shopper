@@ -12,7 +12,7 @@ namespace calc {
                   const std::vector<items::Item*>& allItems);
 
     game::DamageOutput* ComputeDamageOutput(const bool& verbose, const game::GameState* gameState,
-                                           const game::EnemyData* enemy, const items::Item* item);
+                                            const game::EnemyData* enemy, const items::Item* item);
 
     int ApplyDefensiveStat(const int& rawDamage, const int& defensiveStat);
 
