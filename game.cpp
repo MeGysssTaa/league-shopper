@@ -1,4 +1,3 @@
-#include <iostream>
 #include "game.hpp"
 #include "cli.hpp"
 
@@ -7,9 +6,14 @@ namespace game {
     /*
      * EnemyData
      */
-    EnemyData::EnemyData(const int& armor, const int& magicResistance) {
+    EnemyData::EnemyData(const std::wstring& name, const int& armor, const int& magicResistance) {
+        this->name = name;
         this->armor = armor;
         this->magicResistance = magicResistance;
+    }
+
+    std::wstring EnemyData::GetName() const {
+        return name;
     }
 
     int EnemyData::GetArmor() const {
@@ -45,36 +49,59 @@ namespace game {
         return GetTotalDamage() == other.GetTotalDamage();
     }
 
+    DamageOutput* DamageOutput::operator+=(const DamageOutput& other) {
+        physicalDamage += other.physicalDamage;
+        magicDamage += other.magicDamage;
+        trueDamage += other.trueDamage;
+
+        return this;
+    }
+
+    DamageOutput* DamageOutput::operator*(const int& factor) {
+        physicalDamage *= factor;
+        magicDamage *= factor;
+        trueDamage *= factor;
+
+        return this;
+    }
+
     /*
      * Ability
      */
     Ability::Ability(const std::wstring& button, const int& usesPerEnemy, DamageOutput* baseDamage) {
         this->button = button;
         this->usesPerEnemy = usesPerEnemy;
-        this->maxUsesInTeamfight = maxUsesInTeamfight;
         this->baseDamage = baseDamage;
 
-        physicalDmgBonusAdScale = physicalDmgApScale
-                = magicDmgBonusAdScale = magicDmgApScale
-                        = trueDmgBonusAdScale = trueDmgApScale = 0;
+        physicalDmgTotalAdScale = physicalDmgBonusAdScale = physicalDmgApScale
+                = magicDmgTotalAdScale = magicDmgBonusAdScale = magicDmgApScale
+                        = trueDmgTotalAdScale = trueDmgBonusAdScale = trueDmgApScale = 0;
     }
 
     Ability::~Ability() {
         delete baseDamage;
     }
 
-    std::wstring Ability::GetButton() const {
-        return button;
-    }
-
     int Ability::GetUsesPerEnemy() const {
         return usesPerEnemy;
     }
 
-    DamageOutput* Ability::GetDamage(const bool& verbose, const int& bonusAd, const int& ap) const {
-        int bonusPhysical = (int) (physicalDmgBonusAdScale * bonusAd) + (int) (physicalDmgApScale * ap);
-        int bonusMagic    = (int) (magicDmgBonusAdScale    * bonusAd) + (int) (magicDmgApScale    * ap);
-        int bonusTrue     = (int) (trueDmgBonusAdScale     * bonusAd) + (int) (trueDmgApScale     * ap);
+    DamageOutput* Ability::GetDamage(const bool& verbose, const int& totalAd,
+                                     const int& bonusAd, const int& ap) const {
+        int bonusPhysical
+                = (int) (physicalDmgTotalAdScale * totalAd)
+                + (int) (physicalDmgBonusAdScale * bonusAd)
+                + (int) (physicalDmgApScale      * ap);
+
+        int bonusMagic
+                = (int) (magicDmgTotalAdScale * totalAd)
+                + (int) (magicDmgBonusAdScale * bonusAd)
+                + (int) (magicDmgApScale      * ap);
+
+        int bonusTrue
+                = (int) (trueDmgTotalAdScale * totalAd)
+                + (int) (trueDmgBonusAdScale * bonusAd)
+                + (int) (trueDmgApScale      * ap);
 
         auto* totalDmg = new DamageOutput(
                 baseDamage->physicalDamage + bonusPhysical,
@@ -107,6 +134,10 @@ namespace game {
         return totalDmg;
     }
 
+    void Ability::SetPhysicalDmgTotalAdScale(const double& n) {
+        physicalDmgTotalAdScale = n;
+    }
+
     void Ability::SetPhysicalDmgBonusAdScale(const double& n) {
         physicalDmgBonusAdScale = n;
     }
@@ -115,12 +146,20 @@ namespace game {
         physicalDmgApScale = n;
     }
 
+    void Ability::SetMagicDmgTotalAdScale(const double& n) {
+        magicDmgTotalAdScale = n;
+    }
+
     void Ability::SetMagicDmgBonusAdScale(const double& n) {
         magicDmgBonusAdScale = n;
     }
 
     void Ability::SetMagicDmgApScale(const double& n) {
         magicDmgApScale = n;
+    }
+
+    void Ability::SetTrueDmgTotalAdScale(const double& n) {
+        trueDmgTotalAdScale = n;
     }
 
     void Ability::SetTrueDmgBonusAdScale(const double& n) {
@@ -174,6 +213,31 @@ namespace game {
                               new DamageOutput(230, 0, 0));
         w->SetPhysicalDmgBonusAdScale(1.1);
         abilities.emplace_back(w);
+
+        auto* r = new Ability(L"R", 1,
+                              new DamageOutput(320, 0, 0));
+        r->SetPhysicalDmgBonusAdScale(2.0);
+        abilities.emplace_back(r);
+    }
+
+    /*
+     * Nocturne
+     */
+    Nocturne::Nocturne() : Champion(L"Ноктюрн", 115) {
+        auto* p = new Ability(L"P", 7,
+                              new DamageOutput(0, 0, 0));
+        p->SetPhysicalDmgTotalAdScale(0.2);
+        abilities.emplace_back(p);
+
+        auto* q = new Ability(L"Q", 1,
+                              new DamageOutput(245, 0, 0));
+        q->SetPhysicalDmgBonusAdScale(0.75);
+        abilities.emplace_back(q);
+
+        auto* e = new Ability(L"E", 1,
+                              new DamageOutput(0, 260, 0));
+        e->SetMagicDmgApScale(1.0);
+        abilities.emplace_back(e);
     }
 
     /*
@@ -199,6 +263,52 @@ namespace game {
                               new DamageOutput(0, 220, 220));
         e->SetMagicDmgApScale(0.4);
         e->SetTrueDmgApScale(0.4);
+        abilities.emplace_back(e);
+    }
+
+    /*
+     * Lux
+     */
+    Lux::Lux() : Champion(L"Люкс", 110) {
+        auto* p = new Ability(L"P", 2,
+                              new DamageOutput(0, 190, 0));
+        p->SetMagicDmgApScale(0.2);
+        abilities.emplace_back(p);
+
+        auto* q = new Ability(L"Q", 1,
+                              new DamageOutput(0, 260, 0));
+        q->SetMagicDmgApScale(0.6);
+        abilities.emplace_back(q);
+
+        auto* e = new Ability(L"E", 1,
+                              new DamageOutput(0, 240, 0));
+        e->SetMagicDmgApScale(0.6);
+        abilities.emplace_back(e);
+
+        auto* r = new Ability(L"R", 1,
+                              new DamageOutput(0, 500, 0));
+        r->SetMagicDmgApScale(1.0);
+        abilities.emplace_back(r);
+    }
+
+    /*
+     * Fizz
+     */
+    Fizz::Fizz() : Champion(L"Физз", 110) {
+        auto* q = new Ability(L"Q", 2,
+                              new DamageOutput(0, 70, 0));
+        q->SetPhysicalDmgTotalAdScale(1.0);
+        q->SetMagicDmgApScale(0.55);
+        abilities.emplace_back(q);
+
+        auto* w = new Ability(L"W", 2,
+                              new DamageOutput(0, 130, 0));
+        w->SetMagicDmgApScale(0.5);
+        abilities.emplace_back(w);
+
+        auto* e = new Ability(L"E", 1,
+                              new DamageOutput(0, 270, 0));
+        e->SetMagicDmgApScale(0.75);
         abilities.emplace_back(e);
     }
 
@@ -240,12 +350,13 @@ namespace game {
      * <...>
      */
     std::vector<Champion*> GetAvailableChampions() {
-        std::vector<Champion*> champions;
-
-        champions.emplace_back(new Talon());
-        champions.emplace_back(new Zoe());
-
-        return champions;
+        return {
+            new Talon(),
+            new Nocturne(),
+            new Zoe(),
+            new Lux(),
+            new Fizz()
+        };
     }
 
 }

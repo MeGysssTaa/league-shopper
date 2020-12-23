@@ -1,3 +1,4 @@
+#include <map>
 #include "calc.hpp"
 #include "cli.hpp"
 
@@ -13,7 +14,7 @@ namespace calc {
         // Учитываем GetUsesPerEnemy, т.к. некоторые умения могут быть использованы намного чаще других,
         // и, соответственно, атакующих показатели, от которых масштабируется их урон, гораздо важнее.
         for (game::Ability* ability : champ->GetAbilities()) {
-            game::DamageOutput* dmg = ability->GetDamage(false, 300, 300);
+            game::DamageOutput* dmg = ability->GetDamage(false, 100 + 300, 300, 300);
             totalPhysicalDmg += ability->GetUsesPerEnemy() * dmg->physicalDamage;
             totalMagicDmg += ability->GetUsesPerEnemy() * dmg->magicDamage;
         }
@@ -26,24 +27,28 @@ namespace calc {
     void Evaluate(const bool& verbose, const game::GameState* gameState,
                   const std::vector<items::Item*>& allItems) {
         items::ItemType prefItemType = GetPrefItemType(gameState->GetChampion());
-        game::DamageOutput* highestDmgOfAll = nullptr;
-        items::Item* bestItemOfAll = nullptr;
-        int squishestEnemyIdx = -1;
 
-        for (int i = 0; i < gameState->GetEnemies().size(); i++) {
+        std::map<items::Item*,
+                 std::map<game::EnemyData*, game::DamageOutput*>> dmgStats;
+
+        for (items::Item* item : allItems)
+            if (item->GetType() == prefItemType) // не тратим время на заведомо неподходящие предметы
+                dmgStats[item] = std::map<game::EnemyData*, game::DamageOutput*>();
+
+        for (game::EnemyData* enemy : gameState->GetEnemies()) {
             game::DamageOutput* highestDmgVsThis = nullptr;
             items::Item* bestItemVsThis = nullptr;
 
             if (verbose) {
                 cli::PrintLn(L"&8┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
-                cli::PrintLn(L"&8┃  &fВраг № " + std::to_wstring(i + 1), 60, L"  &8┃");
+                cli::PrintLn(L"&8┃  &fВраг " + enemy->GetName(), 60, L"  &8┃");
                 cli::PrintLn(L"&8┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫");
             }
 
             for (items::Item* item : allItems) {
                 if (item->GetType() == prefItemType) { // не тратим время на заведомо неподходящие предметы
-                    game::EnemyData* enemy = gameState->GetEnemies()[i];
-                    game::DamageOutput* damage = ComputeDamageOutput(verbose, gameState, enemy, item);
+                    auto* damage = ComputeDamageOutput(verbose, gameState, enemy, item);
+                    dmgStats[item][enemy] = damage;
 
                     if (highestDmgVsThis == nullptr || *damage > *highestDmgVsThis
                                 || (*damage == *highestDmgVsThis
@@ -76,25 +81,74 @@ namespace calc {
                 cli::PrintLn(L"&8┃  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛  ┃");
                 cli::PrintLn(L"&8┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
             }
+        }
 
-            if (highestDmgOfAll == nullptr || *highestDmgVsThis > *highestDmgOfAll
-                        || (*highestDmgVsThis == *highestDmgOfAll
-                                    && bestItemVsThis->GetPrice() < bestItemOfAll->GetPrice())) {
-                highestDmgOfAll = highestDmgVsThis;
-                bestItemOfAll = bestItemVsThis;
-                squishestEnemyIdx = i;
+        game::DamageOutput* topSqDmg = nullptr; // наибольший возможный урон по самой тонкой цели
+        game::EnemyData* squishestEnemy = nullptr;
+        items::Item* bestVsSquishest = nullptr;
+
+        game::DamageOutput* topTfDmg = nullptr; // наибольший общий урон в командных сражениях
+        items::Item* bestInTeamfight = nullptr;
+
+        for (const auto& [item, stats] : dmgStats) { // проходимся по всем подходящим предметам
+            game::DamageOutput* itemTopSqDmg = nullptr;
+            auto* itemTfDmg = new game::DamageOutput(0, 0, 0);
+
+            for (const auto& [enemy, dmg] : stats) { // проходимся по сводке по урону по каждому из врагов
+                // Ищем цель, по которой мы можем нанести больше всего
+                // урона, и предмет, который поможет нам это сделать.
+                if (itemTopSqDmg == nullptr || *dmg > *itemTopSqDmg) {
+                    itemTopSqDmg = dmg;
+
+                    if (topSqDmg == nullptr || *itemTopSqDmg > *topSqDmg
+                            || (*itemTopSqDmg == *topSqDmg
+                                    && item->GetPrice() < bestVsSquishest->GetPrice())) {
+                        topSqDmg = itemTopSqDmg;
+                        squishestEnemy = enemy;
+                        bestVsSquishest = item;
+                    }
+                }
+
+                // Ищем предмет, который поможет нам нанести наибольший общий урон в командных
+                // сражениях, т.е. наибольший суммарный урон по всем введённым противникам.
+                *itemTfDmg += *dmg;
+
+                if (topTfDmg == nullptr || *itemTfDmg > *topTfDmg
+                        || (*itemTfDmg == *topTfDmg
+                                && item->GetPrice() < bestInTeamfight->GetPrice())) {
+                    topTfDmg = itemTfDmg;
+                    bestInTeamfight = item;
+                }
             }
         }
 
-        cli::PrintLn(L"Больше всего урона вы можете нанести по противнику № &f"
-                + std::to_wstring(squishestEnemyIdx + 1) + L": &c"
-                + std::to_wstring(highestDmgOfAll->GetTotalDamage()) + L" &7всего.");
-        cli::PrintLn(L"Поможет вам в этом &f" + bestItemOfAll->GetName() + L" &7за &6"
-                + std::to_wstring(bestItemOfAll->GetPrice()) + L" зол.");
-        cli::PrintLn(L"Полная сводка по урону:");
-        cli::PrintLn(L"    Физический    &e" + std::to_wstring(highestDmgOfAll->physicalDamage));
-        cli::PrintLn(L"    Магический    &d" + std::to_wstring(highestDmgOfAll->magicDamage));
-        cli::PrintLn(L"    Чистый        &f" + std::to_wstring(highestDmgOfAll->trueDamage) + L"\n\n");
+        cli::PrintLn(L"&8┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
+        cli::PrintLn(L"&8┃  &aРезультаты", 60, L"  &8┃");
+        cli::PrintLn(L"&8┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫");
+        cli::PrintLn(L"&8┃  &7Больше всего урона вы можете нанести &fврагу "
+                + squishestEnemy->GetName() + L"&7:",
+                60, L"  &8┃");
+        cli::PrintLn(L"&8┃  &c"
+                + std::to_wstring(topSqDmg->GetTotalDamage()) + L" &7= &e"
+                + std::to_wstring(topSqDmg->physicalDamage) + L" &7+ &d"
+                + std::to_wstring(topSqDmg->magicDamage) + L" &7+ &f"
+                + std::to_wstring(topSqDmg->trueDamage),
+                60, L"  &8┃");
+        cli::PrintLn(L"&8┃  &7А поможет вам в этом:", 60, L"  &8┃");
+        cli::PrintLn(L"&8┃  &f" + bestVsSquishest->GetName() + L" &6("
+                + std::to_wstring(bestVsSquishest->GetPrice()) + L" зол.)", 60, L"  &8┃");
+        cli::PrintLn(L"&8┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫");
+        cli::PrintLn(L"&8┃  &7Максимальный урон в командных сражениях:", 60, L"  &8┃");
+        cli::PrintLn(L"&8┃  &c"
+                     + std::to_wstring(topTfDmg->GetTotalDamage()) + L" &7= &e"
+                     + std::to_wstring(topTfDmg->physicalDamage) + L" &7+ &d"
+                     + std::to_wstring(topTfDmg->magicDamage) + L" &7+ &f"
+                     + std::to_wstring(topTfDmg->trueDamage),
+                     60, L"  &8┃");
+        cli::PrintLn(L"&8┃  &7Нанести его поможет:", 60, L"  &8┃");
+        cli::PrintLn(L"&8┃  &f" + bestInTeamfight ->GetName() + L" &6("
+                     + std::to_wstring(bestInTeamfight->GetPrice()) + L" зол.)", 60, L"  &8┃");
+        cli::PrintLn(L"&8┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n");
     }
 
     game::DamageOutput* ComputeDamageOutput(const bool& verbose, const game::GameState* gameState,
@@ -133,7 +187,7 @@ namespace calc {
         // при этом каждое умение будет использовано на максимум (если его урон может различаться).
         // Каждое умение будет усилено предметом.
         for (game::Ability* ability : gameState->GetChampion()->GetAbilities()) {
-            game::DamageOutput* abilityDamage = ability->GetDamage(verbose, bonusAd, ap);
+            game::DamageOutput* abilityDamage = ability->GetDamage(verbose, totalAd, bonusAd, ap);
 
             int preItemDmg = abilityDamage->GetTotalDamage();
             abilityDamage = item->AmplifyAbility(abilityDamage); // усиление умения предметом
@@ -156,10 +210,13 @@ namespace calc {
         }
 
         // Вычисляем урон от автоатак.
-        // Считаем, что враг получит 3 автоатаки, одна из которых будет усилена предметом.
+        // Считаем, что враг получит 5 автоатак, 1 из которых будет усилена предметом.
         // Урон усиленных автоатак может быть смешанным. Считаем урон обычных автоатак всегда физическим.
-        game::DamageOutput* empoweredAaDmg = item->AmplifyAutoAttack(baseAd, bonusAd, totalAd, ap); // 1 усиленная АА
-        int ordinaryAaDmg = 2 * totalAd; // 2 обычные АА
+        game::DamageOutput* empoweredAaDmg
+                = *item->AmplifyAutoAttack(baseAd, bonusAd, totalAd, ap) * 1; // 1 усиленная АА
+
+        int ordinaryAaDmg = totalAd * 4; // 4 обычных АА
+
         damage->physicalDamage += ordinaryAaDmg + empoweredAaDmg->physicalDamage;
         damage->magicDamage += empoweredAaDmg->magicDamage;
         damage->trueDamage += empoweredAaDmg->trueDamage;
@@ -174,7 +231,7 @@ namespace calc {
                     + std::to_wstring(empoweredAaDmg->magicDamage) + L" &7+ &f"
                     + std::to_wstring(empoweredAaDmg->trueDamage),
                     56, L"&8┃  ┃  ┃");
-            cli::PrintLn(L"&8┃  ┃  ┃  &7Обычные   (x2)    &e"
+            cli::PrintLn(L"&8┃  ┃  ┃  &7Обычные   (x4)    &e"
                     + std::to_wstring(ordinaryAaDmg),
                     56, L"&8┃  ┃  ┃");
             cli::PrintLn(L"&8┃  ┃  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛  ┃  ┃");

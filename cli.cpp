@@ -1,16 +1,29 @@
+#define LOG_FILE_NAME "league_shopper.log"
 #define MAX_INT_INPUT 5000
 #define HEX std::wstring(L"0123456789abcdef")
 #define DEFAULT_COLOR 0x7
 #define BOLD_WHITE 0xF
 #define COLOR_CODES_PATTERN L"&[\\da-fA-F]"
 
+
 #include <windows.h>
 #include <regex>
+#include <fstream>
 #include "cli.hpp"
 
 namespace cli {
 
     HANDLE _consoleHandle = nullptr;
+    std::wofstream _wfout; // NOLINT(cert-err58-cpp)
+
+    void SetupLogging() {
+        _consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+        _wfout.open(LOG_FILE_NAME);
+    }
+
+    void OnExit() {
+        _wfout.close();
+    }
 
     std::wstring WithPadding(const int& effectiveWidth, std::wstring text) {
         if (effectiveWidth < 1)
@@ -32,15 +45,11 @@ namespace cli {
         if (color < 0 || color > 255)
             throw std::invalid_argument("color must be in range 0..255");
 
-        if (_consoleHandle == nullptr)
-            _consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-
         SetConsoleTextAttribute(_consoleHandle, color);
     }
 
-    int FromHex(const wchar_t& c) {
-        int num = HEX.find(c);
-        return num != std::wstring::npos ? num : -1;
+    std::wstring::size_type FromHex(const wchar_t& c) {
+        return HEX.find(c);
     }
 
     void PrintLn(std::wstring text, const int& effectiveWidth, const std::wstring& suffix) {
@@ -50,25 +59,32 @@ namespace cli {
         if (effectiveWidth != -1)
             text = WithPadding(effectiveWidth, text); // дополняем пробелами до нужной длины (если нужно)
 
-        int offset = 0; // отступ слева от начала текста при выводе очередной части сообщения
+        std::wstring::size_type offset = 0; // отступ слева от начала текста при выводе очередной части сообщения
         Color(DEFAULT_COLOR); // сброс цвета на белый при каждом выводе
 
-        for (int i = 0; i < text.length() - 1; i++) {
-            int hexCol = FromHex(text[i + 1]); // -1, если это не шестнадцатеричная цифра (0..9 | a..f)
+        for (std::wstring::size_type i = 0; i < text.length() - 1; i++) {
+            auto hexCol = FromHex(text[i + 1]); // -1, если это не шестнадцатеричная цифра (0..9 | a..f)
 
-            if (text[i] == '&' && hexCol != -1) { // нашли цветовой код (например, "&e" (=0xE=14))
-                std::wcout << text.substr(offset, i - offset); // выводим текст слева от нового цветового кода
+            if (text[i] == '&' && hexCol != std::wstring::npos) { // нашли цветовой код (например, "&e" (=0xE=14))
+                std::wstring prev = text.substr(offset, i - offset); // выводим текст слева от нового цветового кода
+                std::wcout << prev;
+                _wfout << prev;
                 Color(hexCol); // устанавливаем цвет для вывода текста справа от нового цветового кода
                 offset = i + 2; // пропускаем сам цветовой код при следующем выводе
                 i++; // перескакиваем через следующий символ (цветовой код после '&')
             }
         }
 
-        std::wcout << text.substr(offset, text.length()); // выводим оставшийся текст (если есть)
+        // Выводим оставшийся текст (если есть).
+        std::wstring remainder = text.substr(offset, text.length());
+        std::wcout << remainder;
+        _wfout << remainder;
 
-        if (suffix.empty())
-            std::wcout << std::endl; // суффикс не указан, завершаем вывод новой строкой
-        else
+        if (suffix.empty()) {
+            // Суффикс не указан, завершаем вывод новой строкой.
+            std::wcout << std::endl;
+            _wfout << std::endl;
+        } else
             PrintLn(suffix); // выводим суффикс (с поддержкой цветовых кодов)
 
         Color(DEFAULT_COLOR); // сброс цвета на белый после каждого вывода
@@ -79,7 +95,9 @@ namespace cli {
     }
 
     void PrintLn() {
-        std::wcout << std::endl; // просто вывод пустой строки
+        // Просто выводим пустую строку.
+        std::wcout << std::endl;
+        _wfout << std::endl;
     }
 
     std::wstring Trim(const std::wstring& str) {
@@ -164,11 +182,12 @@ namespace cli {
         PrintLn(L"Введите информацию о противнике № " + std::to_wstring(num));
 
         auto* enemyData = new game::EnemyData(
+                L"№ " + std::to_wstring(num),
                 ReadLimitedInt(L"Броня:"),
                 ReadLimitedInt(L"Сопротивление магии:")
         );
 
-        std::wcout << std::endl;
+        PrintLn();
 
         return enemyData;
     }
@@ -176,10 +195,12 @@ namespace cli {
     std::vector<game::EnemyData*> ReadEnemies() {
         PrintLn(L"Против кого вы играете?");
         std::vector<game::EnemyData*> enemies;
-        int enemiesNum;
+        int enemiesNum = ReadLimitedInt(L"Количество противников:");
 
-        while ((enemiesNum = ReadLimitedInt(L"Количество противников:")) > 9)
-            PrintLn(L"&cОшибка ввода. Укажите не более 9 противников.");
+        while (enemiesNum < 1 || enemiesNum > 9) {
+            PrintLn(L"&cОшибка ввода. Укажите от 1 до 9 противников.");
+            enemiesNum = ReadLimitedInt(L"Количество противников:");
+        }
 
         for (int i = 1; i <= enemiesNum; i++)
             enemies.push_back(ReadEnemyData(i));
@@ -200,7 +221,7 @@ namespace cli {
         if (a.length() != b.length() || a.empty())
             return false;
 
-        for (int i = 0; i < a.length(); i++)
+        for (std::wstring::size_type i = 0; i < a.length(); i++)
             if (std::towlower(a[i]) != std::towlower(b[i]))
                 return false;
 
@@ -223,8 +244,8 @@ namespace cli {
         }
     }
 
-    void PrintGameState(const game::GameState* gameState) {
-        PrintLn(L"&8┏━━━━━ &7Ввод &8━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
+    void EchoGameState(const game::GameState* gameState) {
+        PrintLn(L"&8┏━━━━━ &aВвод &8━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
         PrintLn(L"&8┃  &7Ваш чемпион               &f" + gameState->GetChampion()->GetName(),
                 60, L"  &8┃");
         PrintLn(L"&8┃  &7Базовая сила атаки        &e"

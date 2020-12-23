@@ -51,7 +51,7 @@ namespace items {
     }
 
     game::DamageOutput* Item::AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
-                                               const int& totalAd, const int& ap) const {
+                                                const int& totalAd, const int& ap) const {
         return new game::DamageOutput(totalAd, 0, 0);
     }
 
@@ -71,7 +71,7 @@ namespace items {
     }
 
     game::DamageOutput* LichBane::AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
-                                                   const int& totalAd, const int& ap) const {
+                                                    const int& totalAd, const int& ap) const {
         return new game::DamageOutput(
                 totalAd,
                 (int) (1.5 * baseAd) + (int) (0.4 * ap),

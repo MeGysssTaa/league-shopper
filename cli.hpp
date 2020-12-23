@@ -8,11 +8,15 @@
 
 namespace cli {
 
+    void SetupLogging();
+
+    void OnExit();
+
     std::wstring WithPadding(const int& effectiveWidth, std::wstring text);
 
     void Color(const int& color);
 
-    int FromHex(const wchar_t& c);
+    std::wstring::size_type FromHex(const wchar_t& c);
 
     void PrintLn(std::wstring text, const int& effectiveWidth, const std::wstring& suffix);
 
@@ -38,6 +42,6 @@ namespace cli {
 
     bool ReadVerbose();
 
-    void PrintGameState(const game::GameState* gameState);
+    void EchoGameState(const game::GameState* gameState);
 
 }

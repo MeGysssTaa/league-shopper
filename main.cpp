@@ -1,6 +1,6 @@
 #define VERSION std::wstring(L"1.0.0")
 
-#define TITLE L"&e\n" \
+#define TITLE L"\n" \
               "      _                                    \n" \
               "     | |                                   \n" \
               "     | |     ___  __ _  __ _ _   _  ___    \n" \
@@ -20,22 +20,31 @@
 #include <fcntl.h>
 #include "cli.hpp"
 
-
 int main() {
-    _setmode(_fileno(stdout), _O_U16TEXT); // поддержка Юникода
+    // Поддержка Юникода. (Также нужно использовать wide-методы, функции и типы.)
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    _setmode(_fileno(stdin), _O_U16TEXT);
+
+    // Настраиваем средства вывода в консоль и файл.
+    cli::SetupLogging();
 
     cli::PrintLn(TITLE);
-    cli::PrintLn(L"&e            LeagueShopper v" + VERSION + L"\n");
+    cli::PrintLn(L"            LeagueShopper v" + VERSION + L"\n");
 
     std::vector<items::Item*> allItems = items::GetAvailableItems();
     game::GameState* gameState = cli::ReadGameState();
     bool verbose = cli::ReadVerbose();
 
     if (verbose)
-        cli::PrintLn(L"Активирован режим подробного вывода (вычисления займут больше времени).");
+        cli::PrintLn(L"Активирован режим подробного вывода (программа может работать медленнее).");
 
     cli::PrintLn();
-    cli::PrintGameState(gameState);
+    cli::EchoGameState(gameState);
     calc::Evaluate(verbose, gameState, allItems);
-    cli::PrintLn(L"до связи");
+    cli::PrintLn();
+    cli::PrintLn(L"Вы также можете просмотреть результаты "
+                 "в файле рядом с &f.exe&7-файлом LeagueShopper."); //fixme вывод в файл ломается от символов Юникода
+
+    // Сохраняем лог.
+    cli::OnExit();
 }

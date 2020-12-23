@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "modernize-use-nodiscard"
 #pragma once
 
 
@@ -41,7 +43,7 @@ namespace items {
         virtual int AmplifyChampionAp(const int& curAp) const;
 
         virtual game::DamageOutput* AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
-                                                     const int& totalAd, const int& ap) const;
+                                                      const int& totalAd, const int& ap) const;
 
         virtual game::DamageOutput* AmplifyAbility(const game::DamageOutput* abilityDamage) const;
     };
@@ -91,7 +93,7 @@ namespace items {
     public:
         RavenousHydra();
         game::DamageOutput* AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
-                                             const int& totalAd, const int& ap) const override;
+                                              const int& totalAd, const int& ap) const override;
     };
 
     class SeryldasGrudge : public Item {
@@ -101,3 +103,5 @@ namespace items {
 
     std::vector<Item*> GetAvailableItems();
 }
+
+#pragma clang diagnostic pop
