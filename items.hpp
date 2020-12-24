@@ -56,7 +56,7 @@ namespace items {
     public:
         LichBane();
         game::DamageOutput* AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
-                                             const int& totalAd, const int& ap) const override;
+                                              const int& totalAd, const int& ap) const override;
     };
 
     class HorizonFocus : public Item {

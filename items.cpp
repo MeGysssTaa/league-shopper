@@ -129,7 +129,7 @@ namespace items {
     }
 
     game::DamageOutput* RavenousHydra::AmplifyAutoAttack(const int& baseAd, const int& bonusAd,
-                                                        const int& totalAd, const int& ap) const {
+                                                         const int& totalAd, const int& ap) const {
         return new game::DamageOutput(
                 (int) (1.36 * totalAd),
                 0,
