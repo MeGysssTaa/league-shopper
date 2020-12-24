@@ -1,2 +1,2 @@
-cmake-build-debug\league_shopper.exe
+league_shopper.exe
 pause
