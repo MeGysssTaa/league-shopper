@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "modernize-use-nodiscard"
 #pragma once
 
 
@@ -103,5 +101,3 @@ namespace items {
 
     std::vector<Item*> GetAvailableItems();
 }
-
-#pragma clang diagnostic pop

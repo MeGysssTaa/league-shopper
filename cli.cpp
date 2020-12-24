@@ -1,4 +1,4 @@
-#define LOG_FILE_NAME "league_shopper.log"
+//fixme: #define LOG_FILE_NAME "league_shopper.log"
 #define MAX_INT_INPUT 5000
 #define HEX std::wstring(L"0123456789abcdef")
 #define DEFAULT_COLOR 0x7
@@ -7,6 +7,7 @@
 
 
 #include <windows.h>
+#include <locale>
 #include <regex>
 #include <fstream>
 #include "cli.hpp"
@@ -14,15 +15,16 @@
 namespace cli {
 
     HANDLE _consoleHandle = nullptr;
-    std::wofstream _wfout; // NOLINT(cert-err58-cpp)
+    //fixme: std::wofstream _wfout; // NOLINT(cert-err58-cpp)
 
     void SetupLogging() {
         _consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-        _wfout.open(LOG_FILE_NAME);
+        //fixme: _wfout.imbue(std::locale("en_US.utf-8"));
+        //fixme: _wfout.open(LOG_FILE_NAME);
     }
 
     void OnExit() {
-        _wfout.close();
+        //fixme: _wfout.close();
     }
 
     std::wstring WithPadding(const int& effectiveWidth, std::wstring text) {
@@ -68,7 +70,7 @@ namespace cli {
             if (text[i] == '&' && hexCol != std::wstring::npos) { // нашли цветовой код (например, "&e" (=0xE=14))
                 std::wstring prev = text.substr(offset, i - offset); // выводим текст слева от нового цветового кода
                 std::wcout << prev;
-                _wfout << prev;
+                //fixme: _wfout << prev;
                 Color(hexCol); // устанавливаем цвет для вывода текста справа от нового цветового кода
                 offset = i + 2; // пропускаем сам цветовой код при следующем выводе
                 i++; // перескакиваем через следующий символ (цветовой код после '&')
@@ -78,12 +80,12 @@ namespace cli {
         // Выводим оставшийся текст (если есть).
         std::wstring remainder = text.substr(offset, text.length());
         std::wcout << remainder;
-        _wfout << remainder;
+        //fixme: _wfout << remainder;
 
         if (suffix.empty()) {
             // Суффикс не указан, завершаем вывод новой строкой.
             std::wcout << std::endl;
-            _wfout << std::endl;
+            //fixme: _wfout << std::endl;
         } else
             PrintLn(suffix); // выводим суффикс (с поддержкой цветовых кодов)
 
@@ -97,7 +99,7 @@ namespace cli {
     void PrintLn() {
         // Просто выводим пустую строку.
         std::wcout << std::endl;
-        _wfout << std::endl;
+        //fixme: _wfout << std::endl;
     }
 
     std::wstring Trim(const std::wstring& str) {

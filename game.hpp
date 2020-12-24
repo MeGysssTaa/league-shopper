@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "modernize-use-nodiscard"
 #pragma once
 
 
@@ -129,5 +127,3 @@ namespace game {
     std::vector<Champion*> GetAvailableChampions();
 
 }
-
-#pragma clang diagnostic pop

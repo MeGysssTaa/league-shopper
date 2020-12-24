@@ -42,8 +42,8 @@ int main() {
     cli::EchoGameState(gameState);
     calc::Evaluate(verbose, gameState, allItems);
     cli::PrintLn();
-    cli::PrintLn(L"Вы также можете просмотреть результаты "
-                 "в файле рядом с &f.exe&7-файлом LeagueShopper."); //fixme вывод в файл ломается от символов Юникода
+    //fixme: cli::PrintLn(L"Вы также можете просмотреть результаты "
+    //fixme:              "в файле рядом с &f.exe&7-файлом LeagueShopper."); // FIXME: вывод в файл ломается от Юникода
 
     // Сохраняем лог.
     cli::OnExit();

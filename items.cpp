@@ -149,17 +149,15 @@ namespace items {
      * <...>
      */
     std::vector<Item*> GetAvailableItems() {
-        std::vector<Item*> items;
-
-        items.emplace_back(new LichBane());
-        items.emplace_back(new HorizonFocus());
-        items.emplace_back(new RabadonsDeathcap());
-        items.emplace_back(new VoidStaff());
-        items.emplace_back(new YomuusGhostblade());
-        items.emplace_back(new RavenousHydra());
-        items.emplace_back(new SeryldasGrudge());
-        
-        return items;
+        return {
+            new LichBane(),
+            new HorizonFocus(),
+            new RabadonsDeathcap(),
+            new VoidStaff(),
+            new YomuusGhostblade(),
+            new RavenousHydra(),
+            new SeryldasGrudge()
+        };
     }
 
 }
