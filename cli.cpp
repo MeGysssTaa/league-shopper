@@ -1,4 +1,4 @@
-//fixme: #define LOG_FILE_NAME "league_shopper.log"
+#define LOG_FILE_NAME "league_shopper.log"
 #define MAX_INT_INPUT 5000
 #define HEX std::wstring(L"0123456789abcdef")
 #define DEFAULT_COLOR 0x7
@@ -15,16 +15,17 @@
 namespace cli {
 
     HANDLE _consoleHandle = nullptr;
-    //fixme: std::wofstream _wfout; // NOLINT(cert-err58-cpp)
+    FILE* _logFile = nullptr;
 
     void SetupLogging() {
         _consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-        //fixme: _wfout.imbue(std::locale("en_US.utf-8"));
-        //fixme: _wfout.open(LOG_FILE_NAME);
+        std::remove(LOG_FILE_NAME);
+        _logFile = std::fopen( LOG_FILE_NAME, "w+,ccs=UTF-8");
     }
 
     void OnExit() {
-        //fixme: _wfout.close();
+        std::fclose(_logFile);
+        delete _logFile;
     }
 
     std::wstring WithPadding(const int& effectiveWidth, std::wstring text) {
@@ -68,9 +69,12 @@ namespace cli {
             auto hexCol = FromHex(text[i + 1]); // -1, если это не шестнадцатеричная цифра (0..9 | a..f)
 
             if (text[i] == '&' && hexCol != std::wstring::npos) { // нашли цветовой код (например, "&e" (=0xE=14))
-                std::wstring prev = text.substr(offset, i - offset); // выводим текст слева от нового цветового кода
+                // Выводим текст слева от нового цветового кода.
+                std::wstring prev = text.substr(offset, i - offset);
+                const wchar_t* prevCStr = prev.c_str();
                 std::wcout << prev;
-                //fixme: _wfout << prev;
+                std::fwrite(prevCStr, wcslen(prevCStr) * sizeof(wchar_t), 1, _logFile);
+
                 Color(hexCol); // устанавливаем цвет для вывода текста справа от нового цветового кода
                 offset = i + 2; // пропускаем сам цветовой код при следующем выводе
                 i++; // перескакиваем через следующий символ (цветовой код после '&')
@@ -79,13 +83,14 @@ namespace cli {
 
         // Выводим оставшийся текст (если есть).
         std::wstring remainder = text.substr(offset, text.length());
+        const wchar_t* remainderCStr = remainder.c_str();
         std::wcout << remainder;
-        //fixme: _wfout << remainder;
+        std::fwrite(remainderCStr, wcslen(remainderCStr) * sizeof(wchar_t), 1, _logFile);
 
         if (suffix.empty()) {
             // Суффикс не указан, завершаем вывод новой строкой.
             std::wcout << std::endl;
-            //fixme: _wfout << std::endl;
+            std::fwrite(L"\n", wcslen(L"\n") * sizeof(wchar_t), 1, _logFile);
         } else
             PrintLn(suffix); // выводим суффикс (с поддержкой цветовых кодов)
 
@@ -99,7 +104,7 @@ namespace cli {
     void PrintLn() {
         // Просто выводим пустую строку.
         std::wcout << std::endl;
-        //fixme: _wfout << std::endl;
+        std::fwrite(L"\n", wcslen(L"\n") * sizeof(wchar_t), 1, _logFile);
     }
 
     std::wstring Trim(const std::wstring& str) {
@@ -116,7 +121,7 @@ namespace cli {
             } else break;
         }
 
-        for (std::wstring::size_type i = str.length() - 1; i >= 0; i--) {
+        for (int i = str.length() - 1; i >= 0; i--) {
             if (std::iswspace(str[i]))
                 nChars--;
             else break;

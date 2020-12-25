@@ -1,4 +1,4 @@
-#define VERSION std::wstring(L"1.0.0")
+#define VERSION std::wstring(L"1.1.0")
 
 #define TITLE L"\n" \
               "      _                                    \n" \
@@ -41,10 +41,10 @@ int main() {
     cli::PrintLn();
     cli::EchoGameState(gameState);
     calc::Evaluate(verbose, gameState, allItems);
-    cli::PrintLn();
-    //fixme: cli::PrintLn(L"Вы также можете просмотреть результаты "
-    //fixme:              "в файле рядом с &f.exe&7-файлом LeagueShopper."); // FIXME: вывод в файл ломается от Юникода
+    cli::PrintLn(L"Вы также можете просмотреть результаты "
+                 "в файле рядом с &f.exe&7-файлом LeagueShopper.");
 
-    // Сохраняем лог.
+    // Сохраняем лог и выносим мусор.
     cli::OnExit();
+    delete gameState;
 }
